@@ -1,42 +1,42 @@
 import express from "express";
 import fetch from "node-fetch";
-import cors from "cors";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+// Allowed currencies (jitni chaho add kar sakte ho)
+const allowedCurrencies = ["USD", "INR", "EUR", "GBP", "CAD", "AUD"];
 
-// Root check
-app.get("/", (req, res) => {
-  res.send("Currency Converter Backend is working! Use /currency");
-});
-
-// Currency conversion route
 app.get("/currency", async (req, res) => {
   try {
     const { from, to, amount } = req.query;
 
-    if (!from || !to || !amount) {
-      return res.status(400).json({ error: "Please provide from, to, and amount" });
+    if (!allowedCurrencies.includes(from) || !allowedCurrencies.includes(to)) {
+      return res.status(400).json({ error: "Currency not supported" });
     }
 
-    const apiUrl = `https://api.exchangerate.host/convert?from=${from}&to=${to}&amount=${amount}`;
-
-    const response = await fetch(apiUrl);
+    // Free exchange API se rates la rahe hain
+    const response = await fetch(
+      `https://open.er-api.com/v6/latest/${from}`
+    );
     const data = await response.json();
+
+    if (!data.rates[to]) {
+      return res.status(400).json({ error: "Rate not available" });
+    }
+
+    const rate = data.rates[to];
+    const converted = (amount * rate).toFixed(2);
 
     res.json({
       from,
       to,
       amount,
-      rate: data.info.rate,
-      result: data.result,
+      rate,
+      converted,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error fetching currency data" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
