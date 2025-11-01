@@ -1,20 +1,27 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
+import dotenv from "dotenv";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enable CORS and JSON parsing
+// ✅ Enable CORS and JSON parsing
 app.use(cors());
 app.use(express.json());
 
-// Default test route
+// ✅ Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// ✅ Default Route
 app.get("/", (req, res) => {
-  res.send("✅ Currency API is live! Use /convert?from=USD&to=INR&amount=10 or /currencies to view all supported currencies.");
+  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat");
 });
 
-// ✅ Route to fetch all available currencies
+
+// ✅ Route to get all available currencies
 app.get("/currencies", async (req, res) => {
   try {
     const response = await fetch("https://open.er-api.com/v6/latest/USD");
@@ -27,10 +34,11 @@ app.get("/currencies", async (req, res) => {
     const currencies = Object.keys(data.rates);
     res.json({ total: currencies.length, currencies });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Currency Error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 // ✅ Route to convert currency
 app.get("/convert", async (req, res) => {
@@ -65,12 +73,34 @@ app.get("/convert", async (req, res) => {
       last_update: data.time_last_update_utc,
     });
   } catch (error) {
-    console.error(error);
+    console.error("❌ Conversion Error:", error);
     res.status(500).json({ error: "Server error" });
   }
 });
 
-// Start the server
+
+// ✅ Gemini AI Chatbot Route
+app.post("/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(message);
+    const reply = result.response.text();
+
+    res.json({ reply });
+  } catch (error) {
+    console.error("❌ Chatbot Error:", error);
+    res.status(500).json({ error: "Failed to generate AI response" });
+  }
+});
+
+
+// ✅ Start the Server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
