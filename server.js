@@ -1,3 +1,4 @@
+// ✅ Import dependencies
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
@@ -8,26 +9,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Enable CORS and JSON parsing
+// ✅ Middleware
 app.use(cors());
 app.use(express.json());
 
 // ✅ Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// ✅ Default Route
+// ✅ Default route
 app.get("/", (req, res) => {
   res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat");
 });
 
-
-// ✅ Route to get all available currencies
+// ✅ Fetch all available currencies
 app.get("/currencies", async (req, res) => {
   try {
     const response = await fetch("https://open.er-api.com/v6/latest/USD");
     const data = await response.json();
 
-    if (data.result !== "success") {
+    if (!data || data.result !== "success") {
       return res.status(500).json({ error: "Failed to fetch currency list" });
     }
 
@@ -35,12 +35,11 @@ app.get("/currencies", async (req, res) => {
     res.json({ total: currencies.length, currencies });
   } catch (error) {
     console.error("❌ Currency Error:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error while fetching currencies" });
   }
 });
 
-
-// ✅ Route to convert currency
+// ✅ Currency Conversion Route
 app.get("/convert", async (req, res) => {
   try {
     const { from, to, amount } = req.query;
@@ -53,7 +52,7 @@ app.get("/convert", async (req, res) => {
     const response = await fetch(apiUrl);
     const data = await response.json();
 
-    if (data.result !== "success") {
+    if (!data || data.result !== "success") {
       return res.status(500).json({ error: "Failed to fetch currency data" });
     }
 
@@ -74,12 +73,11 @@ app.get("/convert", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Conversion Error:", error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error while converting currency" });
   }
 });
 
-
-// ✅ Gemini AI Chatbot Route
+// ✅ Chatbot Route (Gemini AI)
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
@@ -99,8 +97,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-
-// ✅ Start the Server
+// ✅ Start the server
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
