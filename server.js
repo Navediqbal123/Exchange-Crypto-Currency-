@@ -3,7 +3,6 @@ import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
 import dotenv from "dotenv";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 const app = express();
@@ -13,12 +12,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// ✅ Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 // ✅ Default route
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat | /weather | /distance | /map");
+  res.send("🚀 Backend Live! Routes: /currencies | /convert | /weather | /distance | /map | /map/search");
 });
 
 // ✅ Fetch all available currencies
@@ -74,26 +70,6 @@ app.get("/convert", async (req, res) => {
   } catch (error) {
     console.error("❌ Conversion Error:", error);
     res.status(500).json({ error: "Server error while converting currency" });
-  }
-});
-
-// ✅ Chatbot Route (Gemini AI)
-app.post("/chat", async (req, res) => {
-  try {
-    const { message } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const result = await model.generateContent(message);
-    const reply = result.response.text();
-
-    res.json({ reply });
-  } catch (error) {
-    console.error("❌ Chatbot Error:", error);
-    res.status(500).json({ error: "Failed to generate AI response" });
   }
 });
 
@@ -157,6 +133,38 @@ app.get("/distance", async (req, res) => {
   } catch (error) {
     console.error("❌ ORS Distance Error:", error);
     res.status(500).json({ error: "Error fetching distance data" });
+  }
+});
+
+// ✅ Map Search (ORS Geocode API)
+app.get("/map/search", async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query) {
+      return res.status(400).json({ error: "Search query is required" });
+    }
+
+    const apiUrl = `https://api.openrouteservice.org/geocode/search?api_key=${process.env.ORS_API_KEY}&text=${query}`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!data || !data.features) {
+      return res.status(500).json({ error: "Failed to fetch map data" });
+    }
+
+    res.json({
+      query,
+      total_results: data.features.length,
+      coordinates: data.features.map(f => ({
+        name: f.properties.label,
+        lat: f.geometry.coordinates[1],
+        lon: f.geometry.coordinates[0],
+      })),
+    });
+  } catch (error) {
+    console.error("❌ Map Search Error:", error);
+    res.status(500).json({ error: "Map search failed" });
   }
 });
 
