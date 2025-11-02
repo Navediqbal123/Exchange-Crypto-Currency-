@@ -18,7 +18,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ✅ Default route
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat | /weather");
+  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat | /weather | /distance | /map");
 });
 
 // ✅ Fetch all available currencies
@@ -124,6 +124,51 @@ app.get("/weather", async (req, res) => {
   } catch (error) {
     console.error("❌ Weather Error:", error);
     res.status(500).json({ error: "Server error while fetching weather data" });
+  }
+});
+
+// ✅ Route Distance (ORS API)
+app.get("/distance", async (req, res) => {
+  try {
+    const { start, end } = req.query;
+
+    if (!start || !end) {
+      return res.status(400).json({ error: "Start and end locations are required" });
+    }
+
+    const apiUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${process.env.ORS_API_KEY}&start=${start}&end=${end}`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (!data || !data.features) {
+      return res.status(500).json({ error: "Failed to fetch route data" });
+    }
+
+    const distanceKm = (data.features[0].properties.summary.distance / 1000).toFixed(2);
+    const durationMin = (data.features[0].properties.summary.duration / 60).toFixed(2);
+
+    res.json({
+      start,
+      end,
+      distance_km: distanceKm,
+      duration_minutes: durationMin,
+      geometry: data.features[0].geometry,
+    });
+  } catch (error) {
+    console.error("❌ ORS Distance Error:", error);
+    res.status(500).json({ error: "Error fetching distance data" });
+  }
+});
+
+// ✅ Global Map Data Route (Leaflet + ORS)
+app.get("/map", async (req, res) => {
+  try {
+    res.json({
+      message: "Use this endpoint with Leaflet.js on frontend to render global map data using ORS routes.",
+      example_usage: "https://api.openrouteservice.org/v2/directions/driving-car?api_key=YOUR_KEY&start=77.5946,12.9716&end=72.8777,19.0760"
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Map endpoint error" });
   }
 });
 
