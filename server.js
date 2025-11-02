@@ -18,7 +18,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // ✅ Default route
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat");
+  res.send("🚀 Backend Live! Routes: /currencies | /convert | /chat | /weather");
 });
 
 // ✅ Fetch all available currencies
@@ -94,6 +94,36 @@ app.post("/chat", async (req, res) => {
   } catch (error) {
     console.error("❌ Chatbot Error:", error);
     res.status(500).json({ error: "Failed to generate AI response" });
+  }
+});
+
+// ✅ Weather Route (OpenWeather API)
+app.get("/weather", async (req, res) => {
+  try {
+    const { city } = req.query;
+
+    if (!city) {
+      return res.status(400).json({ error: "City name is required" });
+    }
+
+    const apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.WEATHER_API_KEY}&units=metric`;
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+
+    if (data.cod !== 200) {
+      return res.status(500).json({ error: data.message });
+    }
+
+    res.json({
+      city: data.name,
+      temperature: data.main.temp,
+      condition: data.weather[0].description,
+      humidity: data.main.humidity,
+      wind_speed: data.wind.speed,
+    });
+  } catch (error) {
+    console.error("❌ Weather Error:", error);
+    res.status(500).json({ error: "Server error while fetching weather data" });
   }
 });
 
