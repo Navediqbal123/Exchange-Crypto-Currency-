@@ -14,7 +14,7 @@ app.use(express.json());
 
 // ✅ Default route
 app.get("/", (req, res) => {
-  res.send("🚀 Backend Live! Routes: /currencies | /convert | /weather | /distance | /map | /map/search");
+  res.send("🚀 Backend Live! Routes: /currencies | /convert | /weather | /distance | /map | /map/search | /map/tiles");
 });
 
 // ✅ Fetch all available currencies
@@ -168,12 +168,36 @@ app.get("/map/search", async (req, res) => {
   }
 });
 
-// ✅ Global Map Data Route (Leaflet + ORS)
+// ✅ MapTiler Tiles Proxy (Secure API Key)
+app.get("/map/tiles", async (req, res) => {
+  try {
+    const { z, x, y } = req.query;
+    if (!z || !x || !y) {
+      return res.status(400).json({ error: "Please provide z, x, y parameters" });
+    }
+
+    const tileUrl = `https://api.maptiler.com/maps/streets/${z}/${x}/${y}.png?key=${process.env.MAPTILER_API_KEY}`;
+    const response = await fetch(tileUrl);
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: "Failed to fetch tile" });
+    }
+
+    const buffer = await response.arrayBuffer();
+    res.set("Content-Type", "image/png");
+    res.send(Buffer.from(buffer));
+  } catch (error) {
+    console.error("❌ MapTiler Error:", error);
+    res.status(500).json({ error: "Server error while fetching map tiles" });
+  }
+});
+
+// ✅ Global Map Info
 app.get("/map", async (req, res) => {
   try {
     res.json({
-      message: "Use this endpoint with Leaflet.js on frontend to render global map data using ORS routes.",
-      example_usage: "https://api.openrouteservice.org/v2/directions/driving-car?api_key=YOUR_KEY&start=77.5946,12.9716&end=72.8777,19.0760"
+      message: "Use this endpoint with Leaflet.js on frontend to render maps securely via backend.",
+      example_usage: "/map/tiles?z=2&x=1&y=3"
     });
   } catch (error) {
     res.status(500).json({ error: "Map endpoint error" });
