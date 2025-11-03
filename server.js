@@ -20,10 +20,10 @@ app.get("/", (req, res) => {
 // ✅ Fetch all available currencies
 app.get("/currencies", async (req, res) => {
   try {
-    const response = await fetch("https://open.er-api.com/v6/latest/USD");
+    const response = await fetch(`https://api.currencyfreaks.com/latest?apikey=${process.env.CURRENCY_API_KEY}`);
     const data = await response.json();
 
-    if (!data || data.result !== "success") {
+    if (!data || !data.rates) {
       return res.status(500).json({ error: "Failed to fetch currency list" });
     }
 
@@ -35,7 +35,7 @@ app.get("/currencies", async (req, res) => {
   }
 });
 
-// ✅ Currency Conversion Route
+// ✅ Currency Conversion Route (Google-like accuracy using CurrencyFreaks)
 app.get("/convert", async (req, res) => {
   try {
     const { from, to, amount } = req.query;
@@ -44,28 +44,31 @@ app.get("/convert", async (req, res) => {
       return res.status(400).json({ error: "Please provide from, to, and amount" });
     }
 
-    const apiUrl = `https://open.er-api.com/v6/latest/${from.toUpperCase()}`;
+    const apiUrl = `https://api.currencyfreaks.com/latest?apikey=${process.env.CURRENCY_API_KEY}&symbols=${to.toUpperCase()},${from.toUpperCase()}`;
     const response = await fetch(apiUrl);
     const data = await response.json();
 
-    if (!data || data.result !== "success") {
+    if (!data || !data.rates) {
       return res.status(500).json({ error: "Failed to fetch currency data" });
     }
 
-    const rate = data.rates[to.toUpperCase()];
-    if (!rate) {
-      return res.status(400).json({ error: `Currency code ${to} not found` });
+    const rateTo = parseFloat(data.rates[to.toUpperCase()]);
+    const rateFrom = parseFloat(data.rates[from.toUpperCase()]);
+
+    if (!rateTo || !rateFrom) {
+      return res.status(400).json({ error: "Invalid currency codes" });
     }
 
-    const convertedAmount = (amount * rate).toFixed(2);
+    const convertedAmount = ((amount * rateTo) / rateFrom).toFixed(2);
 
     res.json({
       from: from.toUpperCase(),
       to: to.toUpperCase(),
       amount,
-      rate,
+      rate: (rateTo / rateFrom).toFixed(4),
       convertedAmount,
-      last_update: data.time_last_update_utc,
+      source: "CurrencyFreaks",
+      last_update: data.date
     });
   } catch (error) {
     console.error("❌ Conversion Error:", error);
